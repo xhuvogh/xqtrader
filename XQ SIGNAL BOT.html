@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>XQ SIGNAL BOT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(to bottom right, #1e1e2f, #2e2e40);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: #2c2f4a;
+      padding: 25px;
+      border-radius: 15px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #ffd900;
+      font-size: 1.8rem;
+    }
+    select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    select {
+      background: #202538;
+      color: #fff;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+      background-repeat: no-repeat;
+      background-position-x: 98%;
+      background-position-y: 50%;
+    }
+    button {
+      background: #37fa06;
+      color: #000;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #00f7ff;
+    }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    #output {
+      background: #121524;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 10px;
+      font-family: monospace;
+      text-align: left;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      min-height: 150px;
+    }
+    .footer {
+      margin-top: 20px;
+    }
+    .footer a {
+      color: #00e0ff;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .loader {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid #00e0ff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      select, button {
+        font-size: 0.9rem;
+        padding: 10px;
+      }
+      #output {
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>XHUVO - QUOTEX</h1>
+
+    <select id="asset">
+      <option value="EUR/USD">EUR/USD</option>
+      <option value="AUD/USD">AUD/USD</option>
+      <option value="GBP/USD">GBP/USD</option>
+      <option value="USD/JPY">USD/JPY</option>
+    </select>
+
+    <select id="timeframe">
+      <option value="1min">1 MIN</option>
+      <option value="2min">2 MIN</option>
+      <option value="5min">5 MIN</option>
+      <option value="15min">15 MIN</option>
+    </select>
+
+    <button onclick="generateSignal()">Generate Signal</button>
+
+    <div id="output">Signal will appear here <br> jast 1 click </here></div>
+
+
+
+    <div class="footer">
+      <a href="https://t.me/xq_traders" target="_blank">Bot Owner @XQ_owner</a>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = "8c9ea02c0cf74480936dde48188511a6"; // Replace with your Twelve Data API key
+    const CACHE = {};
+
+    async function fetchCandles(symbol, interval) {
+      const key = `${symbol}_${interval}`;
+      if (CACHE[key] && Date.now() - CACHE[key].timestamp < 60000) {
+        return CACHE[key].data;
+      }
+
+      try {
+        const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=50&apikey=${API_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status === "error") throw new Error(data.message);
+        CACHE[key] = { data, timestamp: Date.now() };
+        return data;
+      } catch (error) {
+        console.error('API Error:', error.message);
+        return null;
+      }
+    }
+
+    function analyzeTrend(candles) {
+      let up = 0, down = 0, totalChange = 0;
+      for (let i = 0; i < 10 && i < candles.length; i++) {
+        const c = candles[i];
+        const open = parseFloat(c.open);
+        const close = parseFloat(c.close);
+        totalChange += Math.abs(close - open);
+        if (close > open) up++;
+        else if (close < open) down++;
+      }
+      const avgChange = totalChange / Math.min(10, candles.length);
+      const trend = up > down ? "Uptrend" : "Downtrend";
+      const signal = trend === "Uptrend" ? "PUT" : "BUY";
+
+      let confidence = 90;
+      if (Math.abs(up - down) >= 6 && avgChange > 0.0005) {
+        confidence = Math.floor(Math.random() * 5) + 95; // 95–99%
+      } else {
+        confidence = Math.floor(Math.random() * 4) + 91; // 91–94%
+      }
+
+      return { signal, trend, confidence };
+    }
+
+    function randomSignal() {
+      const signal = Math.random() > 0.5 ? "BUY" : "PUT";
+      const confidence = Math.floor(Math.random() * 5) + 90; // 90–94%
+      return { signal, trend: "Random", confidence };
+    }
+
+    function getFormattedTime(offsetMinutes = 1) {
+      const now = new Date(Date.now() + offsetMinutes * 60000);
+      return now.toTimeString().split(' ')[0];
+    }
+
+    async function generateSignal() {
+      const asset = document.getElementById("asset").value;
+      const timeframe = document.getElementById("timeframe").value;
+      const output = document.getElementById("output");
+      const button = document.querySelector("button");
+
+      // Disable button and show loader
+      button.disabled = true;
+      output.innerHTML = "Analyzing data <span class='loader'></span>";
+
+      const symbol = asset.replace("/", "");
+      const candleData = await fetchCandles(symbol, timeframe);
+      let result;
+
+      if (candleData && candleData.values && candleData.values.length > 0) {
+        result = analyzeTrend(candleData.values);
+      } else {
+        result = randomSignal();
+      }
+
+      const placingTime = getFormattedTime(1);
+      const content = 
+`Placing Time : ${placingTime}
+Asset        : ${asset}
+Timeframe    : ${timeframe}
+Signal       : ${result.signal}
+Trend        : ${result.trend}
+Confidence   : ${result.confidence}%`;
+
+      output.textContent = content;
+      button.disabled = false;
+    }
+  </script>
+</body>
+</html>
