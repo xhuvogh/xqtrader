@@ -193,6 +193,7 @@ section{
 
 .main-container .image img{
     width: 100%;
+height: 100%;
 }
 
 .main-container .image:hover{
@@ -265,5 +266,6 @@ section{
         margin-top: 15px;
     }
 }
+
 
 
